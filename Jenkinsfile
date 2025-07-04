@@ -1,38 +1,44 @@
+def gv
+
 pipeline {
     agent any
-
-    tools {
-        maven 'maven-latest'
+    parameters {
+        choice(name: 'VERSION', choices: ['1.1.0', '1.2.0', '1.3.0'], description: '')
+        booleanParam(name: 'executeTests', defaultValue: true, description: '')
     }
-
-    environment {
-        IMAGE_NAME = 'agneypatel/test-repoo:1.2'
-    }
-
     stages {
-        stage ("Build JAR") {
+        stage("init") {
             steps {
-                echo "Building the application..."
-                sh 'mvn package'
-            }
-        }
-
-        stage ("Build Docker Image") {
-            steps {
-                echo "Building the Docker image..."
-                withCredentials([usernamePassword(credentialsId: 'Dockerhub', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-                    sh "docker build -t $IMAGE_NAME ."
-                    sh "echo $PASS | docker login -u $USER --password-stdin"
-                    sh "docker push $IMAGE_NAME"
+                script {
+                   gv = load "script.groovy" 
                 }
             }
         }
-
-        stage ("Deploy") {
+        stage("build") {
             steps {
-                echo "Deploying the application..."
-                // Add your deploy commands here
+                script {
+                    gv.buildApp()
+                }
             }
         }
-    }
+        stage("test") {
+            when {
+                expression {
+                    params.executeTests
+                }
+            }
+            steps {
+                script {
+                    gv.testApp()
+                }
+            }
+        }
+        stage("deploy") {
+            steps {
+                script {
+                    gv.deployApp()
+                }
+            }
+        }
+    }   
 }
